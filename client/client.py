@@ -72,15 +72,70 @@ def client():
 				
 				# Sending Email Subprotocol
 				if num == '1':
-					print(unpad(cipher.decrypt(clientSocket.recv(2048)), 16).decode('ascii'))
+					message = unpad(cipher.decrypt(clientSocket.recv(2048)), 16).decode('ascii')
+					
+					if message == 'Send the email':
+						#2.1: Ask client user to enter email destination clients' 
+						# username and email title					
+						dest = input('Enter destinations (separated by ;): ')
+						
+						title_len = 101
+						while title_len > 100:
+							title = input('Enter Title (max 100 char): ')
+							title_len = len(title)
+						
+						load_f = input('Would you like to load contents from a file? (contents max 1000000 char) (Y/N) ')
+						
+						if load_f.upper() == 'N':
+							while 1:
+								message_content = input('Enter message contents (max 1000000 char): ')
+								
+								if len(message_content) > 1000000:
+									print('Error: Content length exceeds 1000000 char')
+									continue
+								
+								break
+						
+						else:
+							while 1:
+								f_name = input('Enter file name: ')
+							
+								try:
+									with open(f_name, 'r') as f:
+										message_content = f.read()
+									
+									if len(message_content) > 1000000:
+										print('Error: File length exceeds 1000000 char')
+										continue
+									
+									break
+								except:
+									print('File does not exist')
+						
+						combine_send = 'From: ' + username + '\nTo: ' + dest + '\nTitle: ' + title + '\nContent Length: ' + str(len(message_content)) + '\nContent: \n' + message_content
+						
+						clientSocket.send(cipher.encrypt(pad(combine_send.encode('ascii'), 16)))
+						
+						print('The message is sent to the server.')
 				
 				# Viewing Inbox Subprotocol
 				elif num == '2':
 					print(unpad(cipher.decrypt(clientSocket.recv(2048)), 16).decode('ascii'))
-				
+					clientSocket.send(cipher.encrypt(pad('OK'.encode('ascii'), 16)))
+					
 				# Viewing Email Subprotocol
 				elif num == '3':
-					print(unpad(cipher.decrypt(clientSocket.recv(2048)), 16).decode('ascii'))
+					message = unpad(cipher.decrypt(clientSocket.recv(2048)), 16).decode('ascii')
+					
+					if message == 'the server request email index':
+						index = ''
+						while index == '':
+							index = input('Enter the email index you wish to view: ')
+						
+						clientSocket.send(cipher.encrypt(pad(index.encode('ascii'), 16)))
+						
+						# Email
+						print(unpad(cipher.decrypt(clientSocket.recv(2048)), 16).decode('ascii'))
 				
 				# Connection Termination Subprotocol
 				elif num == '4':

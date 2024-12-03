@@ -102,15 +102,98 @@ def server():
 						
 						# Sending Email Subprotocol
 						if message == '1':
-							connectionSocket.send(cipher.encrypt(pad('Sending Email Subprotocol'.encode('ascii'), 16)))
+							connectionSocket.send(cipher.encrypt(pad('Send the email'.encode('ascii'), 16)))
+							
+							message = unpad(cipher.decrypt(connectionSocket.recv(2048)), 16).decode('ascii')
+							
+							email = message.split('\n')
+							
+							lines = []
+							for line in email:
+								lines.append(line.split(': ' , 1))
+							
+							print('An email from', lines[0][1], 'is sent to', lines[1][1], 'has a content length of', lines[3][1])
+							
+							dest = lines[1][1].split(';')
+							
+							timestamp = 'Time and Date: ' + str(datetime.datetime.now()) + '\n'
+							
+							email_combine = ''
+							for i in range(len(email)):
+								if i == 2:
+									email_combine += timestamp
+								
+								email_combine += (email[i] + '\n')
+							
+							for user in dest:
+								# ex. '.(server)/client1/client2_title.txt'
+								with open('./' + user + '/' + lines[0][1] + '_' + lines[2][1] + '.txt', 'w') as f:
+									f.write(email_combine)
+								
+								# Open existing json or create new dict to write
+								try:
+									with open('./' + user + '/Database.json') as f:
+										json_db = json.load(f)
+								except:
+									json_db = {}
+								
+								a_dict = {}
+								a_dict['from'] = lines[0][1]
+								a_dict['datetime'] = str(datetime.datetime.now())
+								a_dict['title'] = lines[2][1]
+								
+								json_db[str(len(json_db)+1)] = a_dict
+								
+								with open('./' + user + '/Database.json', 'w') as f:
+									json.dump(json_db, f)
 						
 						# Viewing Inbox Subprotocol
 						elif message == '2':
-							connectionSocket.send(cipher.encrypt(pad('Viewing Inbox Subprotocol'.encode('ascii'), 16)))
+							# Open existing json or create new dict to write
+							try:
+								with open('./' + userpass[0] + '/Database.json') as f:
+									json_db = json.load(f)
+							except:
+								connectionSocket.send(cipher.encrypt(pad('No emails to view'.encode('ascii'), 16)))
+								continue
+							
+							a_str = '\nIndex	From 		DateTime 			Title\n'
+							
+							for e in json_db:
+								a_str += e + '	' + json_db.get(e).get('from') + '		' + json_db.get(e).get('datetime') + '	' + json_db.get(e).get('title') + '\n'
+							
+							connectionSocket.send(cipher.encrypt(pad(a_str.encode('ascii'), 16)))
+							
+							# OK
+							message = unpad(cipher.decrypt(connectionSocket.recv(2048)), 16).decode('ascii')
+							
+							if message != 'OK':
+								break
 						
 						# Viewing Email Subprotocol
 						elif message == '3':
-							connectionSocket.send(cipher.encrypt(pad('Viewing Email Subprotocol'.encode('ascii'), 16)))
+							connectionSocket.send(cipher.encrypt(pad('the server request email index'.encode('ascii'), 16)))
+							
+							# Index
+							message = unpad(cipher.decrypt(connectionSocket.recv(2048)), 16).decode('ascii')
+							
+							try:
+								with open('./' + userpass[0] + '/Database.json') as f:
+									json_db = json.load(f)
+								
+								
+								sender = json_db[message].get('from')
+								title = json_db[message].get('title')
+								
+								# ./client2/client1_Test.txt
+								with open('./' + userpass[0] + '/' + sender + '_' + title + '.txt', 'r') as f:
+									message_content = f.read()
+								
+								connectionSocket.send(cipher.encrypt(pad(message_content.encode('ascii'), 16)))
+								
+							except:
+								connectionSocket.send(cipher.encrypt(pad('No emails to view'.encode('ascii'), 16)))
+								continue
 						
 						# Connection Termination Subprotocol
 						elif message == '4':
